@@ -137,6 +137,7 @@ const ExplorePools: React.FC = () => {
   const [swapAnchor, setSwapAnchor] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [marketLine, setMarketLine] = useState<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -596,47 +597,56 @@ const ExplorePools: React.FC = () => {
           });
       }
 
-      // Proximity detection to NPCs with hysteresis to avoid flicker
-      const npcs = [npc, npc2, npcSea];
-      // Find nearest NPC and distance
-      let nearest = npcs[0];
-      let nearestDist2 = Infinity;
-      const playerCenterX = player.position.x + player.width / 2;
-      const playerCenterY = player.position.y + player.height / 2;
-      npcs.forEach((n) => {
-        const nx = n.position.x + n.width / 2;
-        const ny = n.position.y + n.height / 2;
-        const dx = nx - playerCenterX;
-        const dy = ny - playerCenterY;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < nearestDist2) {
-          nearestDist2 = d2;
-          nearest = n;
-        }
-      });
-
-      const SHOW_RADIUS2 = SHOW_RADIUS * SHOW_RADIUS;
-      const HIDE_RADIUS2 = HIDE_RADIUS * HIDE_RADIUS;
-
-      if (!showNpcButtonRef.current && nearestDist2 <= SHOW_RADIUS2) {
-        // Entered proximity: show appropriate UI
-        showNpcButtonRef.current = true;
-        setShowNpcButton(acceptedSwapRef.current);
-        setShowSwapPrompt(!acceptedSwapRef.current);
-        const anchorX = nearest.position.x + nearest.width / 2;
-        const anchorY = nearest.position.y - 20;
-        setSwapAnchor({ x: anchorX, y: anchorY });
-      } else if (showNpcButtonRef.current && nearestDist2 > HIDE_RADIUS2) {
-        // Left proximity: hide UI, keep acceptance state intact
-        showNpcButtonRef.current = false;
-        setShowNpcButton(false);
+      // If user accepted swap, force-show buttons anchored to player
+      if (forceShowButtonsRef.current) {
+        setShowNpcButton(true);
         setShowSwapPrompt(false);
-        setSwapAnchor(null);
-      } else if (showNpcButtonRef.current) {
-        // Still within proximity: update anchor continuously
-        const anchorX = nearest.position.x + nearest.width / 2;
-        const anchorY = nearest.position.y - 20;
+        const anchorX = player.position.x + player.width / 2;
+        const anchorY = player.position.y - 20;
         setSwapAnchor({ x: anchorX, y: anchorY });
+      } else {
+        // Proximity detection to NPCs with hysteresis to avoid flicker
+        const npcs = [npc, npc2, npcSea];
+        // Find nearest NPC and distance
+        let nearest = npcs[0];
+        let nearestDist2 = Infinity;
+        const playerCenterX = player.position.x + player.width / 2;
+        const playerCenterY = player.position.y + player.height / 2;
+        npcs.forEach((n) => {
+          const nx = n.position.x + n.width / 2;
+          const ny = n.position.y + n.height / 2;
+          const dx = nx - playerCenterX;
+          const dy = ny - playerCenterY;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < nearestDist2) {
+            nearestDist2 = d2;
+            nearest = n;
+          }
+        });
+
+        const SHOW_RADIUS2 = SHOW_RADIUS * SHOW_RADIUS;
+        const HIDE_RADIUS2 = HIDE_RADIUS * HIDE_RADIUS;
+
+        if (!showNpcButtonRef.current && nearestDist2 <= SHOW_RADIUS2) {
+          // Entered proximity: show appropriate UI
+          showNpcButtonRef.current = true;
+          setShowNpcButton(acceptedSwapRef.current);
+          setShowSwapPrompt(!acceptedSwapRef.current);
+          const anchorX = nearest.position.x + nearest.width / 2;
+          const anchorY = nearest.position.y - 20;
+          setSwapAnchor({ x: anchorX, y: anchorY });
+        } else if (showNpcButtonRef.current && nearestDist2 > HIDE_RADIUS2) {
+          // Left proximity: hide UI, keep acceptance state intact
+          showNpcButtonRef.current = false;
+          setShowNpcButton(false);
+          setShowSwapPrompt(false);
+          setSwapAnchor(null);
+        } else if (showNpcButtonRef.current) {
+          // Still within proximity: update anchor continuously
+          const anchorX = nearest.position.x + nearest.width / 2;
+          const anchorY = nearest.position.y - 20;
+          setSwapAnchor({ x: anchorX, y: anchorY });
+        }
       }
     }
 
@@ -684,6 +694,7 @@ const ExplorePools: React.FC = () => {
                   setShowNpcButton(true);
                   setForceShowButtons(true);
                   forceShowButtonsRef.current = true;
+                  setMarketLine("Step right up! Fresh swaps, best spreads today!");
                 }}
                 className="px-4 py-1.5 rounded-lg bg-[#ffdf8a] border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm"
               >
@@ -697,6 +708,8 @@ const ExplorePools: React.FC = () => {
                   setShowNpcButton(false);
                   setForceShowButtons(false);
                   forceShowButtonsRef.current = false;
+                  setMarketLine("No worries! Deals await when you're ready.");
+                  setTimeout(() => setMarketLine(null), 2000);
                 }}
                 className="px-4 py-1.5 rounded-lg bg-white border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm"
               >
@@ -711,37 +724,73 @@ const ExplorePools: React.FC = () => {
 
       {showNpcButton && swapAnchor && (
         <div
-          className="absolute z-[6] flex items-center gap-3"
+          className="absolute z-[6]"
           style={{
             left: Math.max(8, Math.min(window.innerWidth - 8, swapAnchor.x)) + "px",
             top: Math.max(8, Math.min(window.innerHeight - 8, swapAnchor.y + 60)) + "px",
             transform: "translate(-50%, 0)",
           }}
         >
-          {Array.from({ length: 6 }).map((_, index) => {
-            const token = TOKENS[index];
-            return (
-              <button
-                key={index}
-                className="px-3 py-2 rounded-xl bg-[#fff8e1] border-2 border-[#9a6b34] shadow-[0_4px_0_#9a6b34] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9a6b34] flex flex-col items-center justify-center w-20 h-16 text-[#4a3422]"
-                title={token ? token.symbol : `Button ${index + 1}`}
-              >
-                {token ? (
-                  <>
-                    <img
-                      src={token.image}
-                      alt={token.symbol}
-                      className="w-8 h-8 object-contain"
-                      referrerPolicy="no-referrer"
-                    />
-                    <span className="text-[10px] mt-1">{token.symbol}</span>
-                  </>
-                ) : (
-                  <span>Button {index + 1}</span>
-                )}
-              </button>
-            );
-          })}
+          <div className="relative flex items-center gap-3">
+            <button
+              aria-label="Close token chooser"
+              onClick={() => {
+                setShowNpcButton(false);
+                showNpcButtonRef.current = false;
+                setForceShowButtons(false);
+                forceShowButtonsRef.current = false;
+                setAcceptedSwap(false);
+                acceptedSwapRef.current = false;
+                setShowSwapPrompt(false);
+                setMarketLine("Changed your mind? Best rates return at sunrise!");
+                setTimeout(() => setMarketLine(null), 2200);
+              }}
+              className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white text-[#4a3422] border-2 border-[#9a6b34] shadow-[0_2px_0_#9a6b34] hover:brightness-105 active:translate-y-[1px] active:shadow-none"
+            >
+              ×
+            </button>
+            {Array.from({ length: 6 }).map((_, index) => {
+              const token = TOKENS[index];
+              return (
+                <button
+                  key={index}
+                  className="px-3 py-2 rounded-xl bg-[#fff8e1] border-2 border-[#9a6b34] shadow-[0_4px_0_#9a6b34] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9a6b34] flex flex-col items-center justify-center w-20 h-16 text-[#4a3422]"
+                  title={token ? token.symbol : `Button ${index + 1}`}
+                >
+                  {token ? (
+                    <>
+                      <img
+                        src={token.image}
+                        alt={token.symbol}
+                        className="w-8 h-8 object-contain"
+                        referrerPolicy="no-referrer"
+                      />
+                      <span className="text-[10px] mt-1">{token.symbol}</span>
+                    </>
+                  ) : (
+                    <span>Button {index + 1}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {marketLine && swapAnchor && (
+        <div
+          className="absolute z-[6]"
+          style={{
+            left: Math.max(8, Math.min(window.innerWidth - 8, swapAnchor.x)) + "px",
+            top: Math.max(8, Math.min(window.innerHeight - 8, swapAnchor.y - 20)) + "px",
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <div className="relative px-3 py-2 rounded-lg bg-white/90 border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] text-[#4a3422] text-xs whitespace-nowrap">
+            {marketLine}
+            <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 w-0 h-0 border-l-6 border-r-6 border-t-6 border-l-transparent border-r-transparent border-t-[#9a6b34]"></div>
+            <div className="absolute left-1/2 -bottom-[5px] -translate-x-1/2 w-0 h-0 border-l-6 border-r-6 border-t-6 border-l-transparent border-r-transparent border-t-white"></div>
+          </div>
         </div>
       )}
 
