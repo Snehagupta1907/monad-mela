@@ -132,6 +132,8 @@ const ExplorePools: React.FC = () => {
   const [showSwapPrompt, setShowSwapPrompt] = useState(false);
   const [acceptedSwap, setAcceptedSwap] = useState(false);
   const acceptedSwapRef = useRef<boolean>(false);
+  const [forceShowButtons, setForceShowButtons] = useState(false);
+  const forceShowButtonsRef = useRef<boolean>(false);
   const [swapAnchor, setSwapAnchor] = useState<{ x: number; y: number } | null>(
     null
   );
@@ -680,6 +682,8 @@ const ExplorePools: React.FC = () => {
                   acceptedSwapRef.current = true;
                   setShowSwapPrompt(false);
                   setShowNpcButton(true);
+                  setForceShowButtons(true);
+                  forceShowButtonsRef.current = true;
                 }}
                 className="px-4 py-1.5 rounded-lg bg-[#ffdf8a] border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm"
               >
@@ -691,6 +695,8 @@ const ExplorePools: React.FC = () => {
                   acceptedSwapRef.current = false;
                   setShowSwapPrompt(false);
                   setShowNpcButton(false);
+                  setForceShowButtons(false);
+                  forceShowButtonsRef.current = false;
                 }}
                 className="px-4 py-1.5 rounded-lg bg-white border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm"
               >
