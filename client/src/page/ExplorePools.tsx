@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Boundary, House, Sprite } from "@/classes/classes";
@@ -10,7 +10,6 @@ import {
 } from "@/classes/helper";
 import { houses } from "@/data/houses";
 import { trees } from "@/data/trees";
-import { addSwapRequest } from "@/lib/swaps";
 
 const offset = {
   x: -675,
@@ -126,10 +125,6 @@ console.log(treeZones);
 
 const ExplorePools: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [showSwapPrompt, setShowSwapPrompt] = useState(false);
-  const [fromToken, setFromToken] = useState("");
-  const [toToken, setToToken] = useState("");
-  const [amount, setAmount] = useState("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -157,6 +152,7 @@ const ExplorePools: React.FC = () => {
     const playerRightImage = new Image();
     playerRightImage.src = "/playerRight.png";
 
+
     const background = new Sprite({
       position: { x: offset.x, y: offset.y },
       image: backgroundImg,
@@ -180,6 +176,7 @@ const ExplorePools: React.FC = () => {
         down: playerDownImage,
       },
     });
+
 
     const keys = {
       w: {
@@ -310,7 +307,8 @@ const ExplorePools: React.FC = () => {
       background,
       ...boundaries,
       ...housesMap,
-      ...treeZones];
+      ...treeZones
+    ];
     const renderables = [
       background,
       ...boundaries,
@@ -541,14 +539,6 @@ const ExplorePools: React.FC = () => {
             Go to Dashboard
           </Button>
         </Link>
-        <Link to="/swaps">
-          <Button
-            variant="secondary"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            Swap Board
-          </Button>
-        </Link>
         </div>
       </div>
       {/* Page content */}
@@ -563,49 +553,6 @@ const ExplorePools: React.FC = () => {
   id="houseDialogueBox"
   className="bg-white/70 backdrop-blur-sm h-[500px] w-[500px] fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 border-4 border-black hidden p-3"
 ></div>
-
-      {showSwapPrompt && (
-        <div className="fixed z-[6] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black w-[360px] rounded-lg shadow-xl p-4">
-          <h3 className="font-semibold text-lg mb-3">Post Swap Request</h3>
-          <div className="space-y-3">
-            <input
-              value={fromToken}
-              onChange={(e) => setFromToken(e.target.value)}
-              placeholder="From token (e.g. USDC)"
-              className="w-full border rounded px-3 py-2"
-            />
-            <input
-              value={toToken}
-              onChange={(e) => setToToken(e.target.value)}
-              placeholder="To token (e.g. ETH)"
-              className="w-full border rounded px-3 py-2"
-            />
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Amount"
-              className="w-full border rounded px-3 py-2"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowSwapPrompt(false)}>Cancel</Button>
-              <Button
-                onClick={() => {
-                  if (!fromToken || !toToken || !amount) return;
-                  addSwapRequest({ fromToken, toToken, amount });
-                  setShowSwapPrompt(false);
-                  setFromToken("");
-                  setToToken("");
-                  setAmount("");
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Post Request
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
