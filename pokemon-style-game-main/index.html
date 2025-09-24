@@ -1,0 +1,399 @@
+<head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    * {
+      font-family: 'Press Start 2P', cursive;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: black;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    button {
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #ddd;
+    }
+  </style>
+</head>
+
+<div style="display: inline-block; position: relative">
+  <div
+    id="overlappingDiv"
+    style="
+      background-color: black;
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+    "
+  ></div>
+
+  <canvas></canvas>
+
+  <div id="toast-container" class="fixed top-0 right-0 z-50 space-y-2 p-4">
+    <!-- Toast will be appended here dynamically -->
+  </div>
+
+  <div
+    id="characterDialogueBox"
+    class="bg-white absolute bottom-0 z-[5] left-0 right-0 border-t-4 border-black hidden p-3"
+  ></div>
+
+  <div
+    id="houseDialogueBox"
+    class="bg-white/70 backdrop-blur-md h-[75vh] max-w-xl w-full absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-black hidden p-3"
+  ></div>
+  <div class="absolute flex gap-2 top-2 right-2 z-[5]">
+    <a href="dashboard.html">
+      <button
+        class="p-4 py-auto h-full bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+      >
+        Dashboard
+      </button>
+    </a>
+
+    <button
+      id="connectButton"
+      class="p-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+      onclick="handleWalletConnection()"
+    >
+      Connect
+    </button>
+
+    <!-- Display Wallet Address -->
+    <div
+      id="walletInfo"
+      class="p-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 hidden"
+    >
+      <p class="text-lg font-medium">Wallet Address:</p>
+      <p id="walletAddress" class="text-gray-700 font-mono mt-1"></p>
+    </div>
+  </div>
+
+  <div
+    id="directions"
+    class="bg-white absolute bottom-4 left-1/2 -translate-x-1/2 border-4 border-black p-3"
+  >
+    Click [SpaceBar]
+  </div>
+
+  <div id="userInterface" style="display: none">
+    <!-- Represents health bar of draggle (enemy) -->
+    <div
+      style="
+        background-color: white;
+        width: 250px;
+        position: absolute;
+        top: 50px;
+        left: 50px;
+        border: 4px black solid;
+        padding: 12px;
+      "
+    >
+      <h1 style="font-size: 16px">Draggle</h1>
+      <div style="position: relative">
+        <div
+          style="height: 5px; background-color: #ccc; margin-top: 10px"
+        ></div>
+        <div
+          id="enemyHealthBar"
+          style="
+            height: 5px;
+            background-color: green;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+          "
+        ></div>
+      </div>
+    </div>
+
+    <!-- Represents health bar of emby (us) -->
+    <div
+      style="
+        background-color: white;
+        width: 250px;
+        position: absolute;
+        top: 330px;
+        right: 50px;
+        border: 4px black solid;
+        padding: 12px;
+      "
+    >
+      <h1 style="font-size: 16px">Emby</h1>
+      <div style="position: relative">
+        <div
+          style="height: 5px; background-color: #ccc; margin-top: 10px"
+        ></div>
+        <div
+          id="playerHealthBar"
+          style="
+            height: 5px;
+            background-color: green;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+          "
+        ></div>
+      </div>
+    </div>
+
+    <div
+      style="
+        background-color: white;
+        height: 140px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-top: 4px black solid;
+        display: flex;
+      "
+    >
+      <div
+        id="dialogueBox"
+        style="
+          position: absolute;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          background-color: white;
+          padding: 12px;
+          display: none;
+          cursor: pointer;
+        "
+      ></div>
+      <div
+        id="attacksBox"
+        style="
+          width: 66.66%;
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+        "
+      ></div>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 33.33%;
+          border-left: 4px black solid;
+        "
+      >
+        <h1 id="attackType" style="font-size: 16px">Attack Type</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  id="liquidityModal"
+  class="fixed inset-0 bg-black bg-opacity-50 hidden items-center z-10 justify-center"
+>
+  <div class="bg-white rounded-lg p-6 w-[98vw]">
+    <div id="modalContent" class="relative">
+      <div
+        id="loader"
+        class="hidden font-lg font-bold absolute bg-white h-full w-full text-center flex items-center justify-center"
+      ></div>
+
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">Liquidity Vault</h2>
+        <button
+          onclick="closeModal()"
+          class="text-gray-500 hover:text-gray-700"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Token Details -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="border rounded-lg p-3 text-center">
+          <div
+            id="token0Image"
+            class="w-16 h-16 mx-auto mb-2 bg-center bg-cover rounded-full bg-gray-200"
+          ></div>
+          <div id="token0Name" class="font-semibold">Token 0</div>
+          <div id="token0Symbol" class="text-sm text-gray-600">SYM0</div>
+          <div id="token0Balance" class="text-xs text-gray-500 mt-1">
+            Balance: 0
+          </div>
+        </div>
+        <div class="border rounded-lg p-3 text-center">
+          <div
+            id="token1Image"
+            class="w-16 h-16 mx-auto mb-2 bg-center bg-cover rounded-full bg-gray-200"
+          ></div>
+          <div id="token1Name" class="font-semibold">Token 1</div>
+          <div id="token1Symbol" class="text-sm text-gray-600">SYM1</div>
+          <div id="token1Balance" class="text-xs text-gray-500 mt-1">
+            Balance: 0
+          </div>
+        </div>
+      </div>
+
+      <!-- Vault Information -->
+      <div class="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center">
+            <span class="font-medium">Total Vault Liquidity</span>
+          </div>
+          <span id="totalLiquidity" class="text-gray-700">0 Shares</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <div class="flex items-center">
+            <span class="font-medium">Your Initial Liquidity</span>
+          </div>
+          <span id="initialLiquidity" class="text-gray-700">0</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <div class="flex items-center">
+            <span class="font-medium">Your ROI</span>
+          </div>
+          <span id="roi" class="text-gray-700">N/A</span>
+        </div>
+      </div>
+
+      <!-- Liquidity Management -->
+      <div class="gap-4 flex w-full">
+        <!-- Add Liquidity Section -->
+        <div class="border rounded-lg p-4 basis-1/2 bg-gray-50">
+          <h3 class="text-lg font-semibold mb-3 text-gray-800">
+            Add Liquidity
+          </h3>
+          <div class="space-y-3 w-full">
+            <div class="space-x-2 w-full flex">
+              <input
+                type="number"
+                id="amount0Input"
+                placeholder="Token 0 Amount"
+                class="p-2 border flex-1 rounded-lg"
+              />
+              <button
+                onclick="approveToken0()"
+                class="flex-1 bg-amber-500 flex-none hover:bg-amber-600 text-white py-2 px-3 rounded-lg"
+              >
+                Approve
+              </button>
+            </div>
+            <div class="space-x-2 w-full flex">
+              <input
+                type="number"
+                id="amount1Input"
+                placeholder="Token 1 Amount"
+                class="p-2 border flex-1 rounded-lg"
+              />
+              <button
+                onclick="approveToken1()"
+                class="flex-1 bg-yellow-500 flex-none hover:bg-yellow-600 text-white py-2 px-3 rounded-lg"
+              >
+                Approve
+              </button>
+            </div>
+
+            <div class="flex space-x-2">
+              <button
+                onclick="addLiquidity()"
+                class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-lg"
+              >
+                Add Liquidity
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Remove Liquidity Section -->
+        <div class="border rounded-lg basis-1/2 p-4 bg-gray-50">
+          <h3 class="text-lg font-semibold mb-3 text-gray-800">
+            Remove Liquidity
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-center">
+              <span id="liquidityShares">Your Liquidity Shares: 0</span>
+            </div>
+            <input
+              type="number"
+              id="sharesToRemoveInput"
+              placeholder="Shares to Remove"
+              class="w-full p-2 border rounded-lg"
+            />
+            <button
+              onclick="removeLiquidity()"
+              class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
+            >
+              Remove Liquidity
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/web3modal"></script>
+<script src="https://cdn.jsdelivr.net/npm/web3"></script>
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethereum-qr-code"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.5.0/web3.min.js"></script>
+<!-- <script type="module"></script> -->
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"
+  integrity="sha512-6+YN/9o9BWrk6wSfGxQGpt3EUK6XeHi6yeHV+TYD2GR0Sj/cggRpXr1BrAQf0as6XslxomMUxXp2vIl+fv0QRA=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"
+  integrity="sha512-H6cPm97FAsgIKmlBA4s774vqoN24V5gSQL4yBTDOY2su2DeXZVhQPxFK4P6GPdnZqM9fg1G3cMv5wD7e6cFLZQ=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<script src="data/audio.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/battleZones.js"></script>
+<script src="data/collisions.js"></script>
+<script src="abis/Token.json"></script>
+<script src="data/attacks.js"></script>
+<script src="data/trees.js"></script>
+<script src="data/monsters.js"></script>
+<script src="data/characters.js"></script>
+<script src="data/houses.js"></script>
+<script src="js/utils.js"></script>
+<script src="classes.js"></script>
+<script src="index.js"></script>
+<script src="js/wallet-connect.js"></script>
+<script src="js/web3-utils.js"></script>
+<script src="js/fetchPoolData.js"></script>
