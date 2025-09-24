@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import LoginButton from "@/components/LoginButton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ethers } from "ethers";
+import toast from "react-hot-toast";
 import {
   checkForHouseCollision,
   checkForTreeCollision,
@@ -14,7 +16,6 @@ import {
 } from "@/classes/helper";
 import { houses } from "@/data/houses";
 import { trees } from "@/data/trees";
-import SwapButton from "@/components/SwapButton";
 
 const offset = {
   x: -675,
@@ -141,10 +142,265 @@ const ExplorePools: React.FC = () => {
     null
   );
   const [marketLine, setMarketLine] = useState<string | null>(null);
+  const TOKENS_ARRAY = Object.values(TOKENS);
+  const getTokenBySymbol = (symbol: string) => TOKENS_ARRAY.find((t) => t.symbol === symbol);
   const [isSwapOpen, setIsSwapOpen] = useState(false);
-  const [fromTokenSymbol, setFromTokenSymbol] = useState<string>(TOKENS[0]?.symbol ?? "");
+  const [fromTokenSymbol, setFromTokenSymbol] = useState<string>(TOKENS_ARRAY[0]?.symbol ?? "");
   const [toTokenSymbol, setToTokenSymbol] = useState<string>("");
   const [sellAmountInput, setSellAmountInput] = useState<string>("");
+  const [isSwapping, setIsSwapping] = useState<boolean>(false);
+
+  // Router/Permit2 config from your deployment
+  const ROUTER_CONFIG = {
+    router: "0x959eBb7b46DCbdA2746781b77F3c0aAA668D2329",
+    permit2: "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    lstPool: "0x0aef4B9C7887D80C9CF3108ff07bAB7d23865CB8",
+  } as const;
+
+  // Minimal ABIs
+  const ERC20_ABI = [
+    { inputs: [{ name: "owner", type: "address" }], name: "balanceOf", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+    { inputs: [], name: "decimals", outputs: [{ type: "uint8" }], stateMutability: "view", type: "function" },
+    { inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], name: "approve", outputs: [{ type: "bool" }], stateMutability: "nonpayable", type: "function" },
+    { inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], name: "allowance", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  ] as const;
+
+  const PERMIT2_ABI = [
+    {
+      inputs: [
+        { internalType: "address", name: "token", type: "address" },
+        { internalType: "address", name: "spender", type: "address" },
+        { internalType: "uint160", name: "amount", type: "uint160" },
+        { internalType: "uint48", name: "expiration", type: "uint48" },
+      ],
+      name: "approve",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+  ] as const;
+
+  const ROUTER_ABI = [
+    {
+      inputs: [
+        { name: "pool", type: "address" },
+        { name: "tokenIn", type: "address" },
+        { name: "tokenOut", type: "address" },
+        { name: "exactAmountIn", type: "uint256" },
+        { name: "minAmountOut", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+        { name: "wethIsEth", type: "bool" },
+        { name: "userData", type: "bytes" },
+      ],
+      name: "swapSingleTokenExactIn",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+  ] as const;
+
+  function getDeadline(secondsFromNow = 1800): bigint {
+    return BigInt(Math.floor(Date.now() / 1000) + secondsFromNow);
+  }
+
+  function pct(amount: bigint, bps: number): bigint {
+    return (amount * BigInt(bps)) / 10000n;
+  }
+
+  async function performSwapRouter() {
+    const toastId = toast.loading("Preparing swap...");
+    setIsSwapping(true);
+    try {
+      if (!fromTokenSymbol || !toTokenSymbol || !sellAmountInput) {
+        setMarketLine("Please select tokens and enter amount.");
+        setTimeout(() => setMarketLine(null), 2000);
+        toast.dismiss(toastId);
+        setIsSwapping(false);
+        return;
+      }
+
+      const tokenIn = getTokenBySymbol(fromTokenSymbol);
+      const tokenOut = getTokenBySymbol(toTokenSymbol);
+      if (!tokenIn || !tokenOut) {
+        setMarketLine("Token not found.");
+        setTimeout(() => setMarketLine(null), 2000);
+        return;
+      }
+
+      const eth = (window as any).ethereum;
+      if (!eth) {
+        setMarketLine("Wallet not found.");
+        setTimeout(() => setMarketLine(null), 2000);
+        toast.error("Wallet not found", { id: toastId });
+        setIsSwapping(false);
+        return;
+      }
+      const provider = new ethers.BrowserProvider(eth);
+      const signer = await provider.getSigner();
+      const from = await signer.getAddress();
+
+      const erc20In = new ethers.Contract(tokenIn.address, ERC20_ABI, signer);
+      const decimals: number = await erc20In.decimals();
+      const parseUnits = (value: string, dec: number) => ethers.parseUnits(value, dec);
+      const exactAmountIn = parseUnits(sellAmountInput, decimals);
+
+      // Ensure balance
+      const balIn: bigint = await erc20In.balanceOf(from);
+      if (balIn < exactAmountIn) {
+        setMarketLine("Insufficient balance.");
+        setTimeout(() => setMarketLine(null), 2000);
+        toast.error("Insufficient balance", { id: toastId });
+        setIsSwapping(false);
+        return;
+      }
+
+      // Approve token to Permit2 if needed
+      const permit2Addr = ROUTER_CONFIG.permit2;
+      const allowanceToPermit2: bigint = await erc20In.allowance(from, permit2Addr);
+      if (allowanceToPermit2 < exactAmountIn) {
+        setMarketLine("Approving Permit2...");
+        toast.loading("Approving token to Permit2...", { id: toastId });
+        await (await erc20In.approve(permit2Addr, exactAmountIn)).wait();
+      }
+
+      // Approve Permit2 to Router
+      setMarketLine("Approving Router via Permit2...");
+      toast.loading("Approving Router via Permit2...", { id: toastId });
+      const permit2 = new ethers.Contract(permit2Addr, PERMIT2_ABI, signer);
+      const MAX_UINT48 = 281474976710655n;
+      await (await permit2.approve(tokenIn.address, ROUTER_CONFIG.router, exactAmountIn, MAX_UINT48)).wait();
+
+      // Call router
+      setMarketLine("Swapping...");
+      toast.loading("Sending swap transaction...", { id: toastId });
+      const router = new ethers.Contract(ROUTER_CONFIG.router, ROUTER_ABI, signer);
+      console.log({router});
+      const deadline = getDeadline(1800);
+      const minOut = 0n; // TODO: add slippage controls
+      const wethIsEth = false;
+      const userData = "0x";
+      console.log({deadline, minOut, wethIsEth, userData,tokenIn,tokenOut,exactAmountIn});
+      const tx = await router.swapSingleTokenExactIn(
+        ROUTER_CONFIG.lstPool,
+        tokenIn.address,
+        tokenOut.address,
+        exactAmountIn,
+        minOut,
+        deadline,
+        wethIsEth,
+        userData
+      );
+      console.log(tx);
+      toast.success("Tx submitted", { id: toastId });
+      const receipt = await tx.wait();
+      toast.success(`Swap confirmed in block ${receipt?.blockNumber}`);
+      setMarketLine("Swap executed!");
+      setTimeout(() => setMarketLine(null), 2500);
+      setIsSwapOpen(false);
+      setIsSwapping(false);
+    } catch (error: any) {
+      const reason = error?.shortMessage || error?.message || "Swap failed";
+      setMarketLine(reason);
+      setTimeout(() => setMarketLine(null), 3000);
+      toast.error(reason);
+      setIsSwapping(false);
+    }
+  }
+
+  // TEMP: Hardcoded test swap shMON -> sMON amount 0.1, 1% slippage
+  async function performSwapRouterHardcoded() {
+    const toastId = toast.loading("Preparing test swap (0.1 shMON → sMON)...");
+    setIsSwapping(true);
+    try {
+      const tokenIn = TOKENS.shMON;
+      const tokenOut = TOKENS.sMON;
+      const amountStr = "0.1";
+
+      const eth = (window as any).ethereum;
+      if (!eth) {
+        setMarketLine("Wallet not found.");
+        setTimeout(() => setMarketLine(null), 2000);
+        toast.error("Wallet not found", { id: toastId });
+        setIsSwapping(false);
+        return;
+      }
+      const provider = new ethers.BrowserProvider(eth);
+      const signer = await provider.getSigner();
+      const from = await signer.getAddress();
+
+      const erc20In = new ethers.Contract(tokenIn.address, ERC20_ABI, signer);
+      const decimals: number = await erc20In.decimals();
+      const exactAmountIn = ethers.parseUnits(amountStr, decimals);
+
+      const balIn: bigint = await erc20In.balanceOf(from);
+      if (balIn < exactAmountIn) {
+        setMarketLine("Insufficient balance for test swap.");
+        setTimeout(() => setMarketLine(null), 2000);
+        toast.error("Insufficient balance", { id: toastId });
+        setIsSwapping(false);
+        return;
+      }
+
+      const permit2Addr = ROUTER_CONFIG.permit2;
+      const allowanceToPermit2: bigint = await erc20In.allowance(from, permit2Addr);
+      if (allowanceToPermit2 < exactAmountIn) {
+        setMarketLine("Approving Permit2...");
+        toast.loading("Approving token to Permit2...", { id: toastId });
+        await (await erc20In.approve(permit2Addr, exactAmountIn)).wait();
+      }
+
+      setMarketLine("Approving Router via Permit2...");
+      toast.loading("Approving Router via Permit2...", { id: toastId });
+      const permit2 = new ethers.Contract(permit2Addr, PERMIT2_ABI, signer);
+      const MAX_UINT48 = 281474976710655n;
+      await (await permit2.approve(tokenIn.address, ROUTER_CONFIG.router, exactAmountIn, MAX_UINT48)).wait();
+
+      const router = new ethers.Contract(ROUTER_CONFIG.router, ROUTER_ABI, signer);
+      const deadline = getDeadline(1800);
+      let minOut = 0n;
+      try {
+        const quotedOut: bigint = await router.swapSingleTokenExactIn.staticCall(
+          ROUTER_CONFIG.lstPool,
+          tokenIn.address,
+          tokenOut.address,
+          exactAmountIn,
+          0n,
+          deadline,
+          false,
+          "0x"
+        );
+        if (quotedOut > 0n) {
+          minOut = quotedOut - pct(quotedOut, 100); // 1% slippage
+        }
+      } catch {}
+
+      setMarketLine("Swapping (test)...");
+      toast.loading("Sending test swap...", { id: toastId });
+      const tx = await router.swapSingleTokenExactIn(
+        ROUTER_CONFIG.lstPool,
+        tokenIn.address,
+        tokenOut.address,
+        exactAmountIn,
+        minOut,
+        deadline,
+        false,
+        "0x"
+      );
+      toast.success("Tx submitted", { id: toastId });
+      const receipt = await tx.wait();
+      toast.success(`Test swap confirmed in block ${receipt?.blockNumber}`);
+      setMarketLine("Test swap executed!");
+      setTimeout(() => setMarketLine(null), 2500);
+      setIsSwapOpen(false);
+      setIsSwapping(false);
+    } catch (error: any) {
+      const reason = error?.shortMessage || error?.message || "Swap failed";
+      setMarketLine(reason);
+      setTimeout(() => setMarketLine(null), 3000);
+      toast.error(reason);
+      setIsSwapping(false);
+    }
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -764,35 +1020,25 @@ const ExplorePools: React.FC = () => {
             >
               ×
             </button>
-            {Array.from({ length: 6 }).map((_, index) => {
-              const token = TOKENS[index];
-              return (
-                <button
-                  key={index}
-                  onClick={() => {
-                    if (!token) return;
-                    setToTokenSymbol(token.symbol);
-                    setIsSwapOpen(true);
-                  }}
-                  className="px-3 py-2 rounded-xl bg-[#fff8e1] border-2 border-[#9a6b34] shadow-[0_4px_0_#9a6b34] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9a6b34] flex flex-col items-center justify-center w-20 h-16 text-[#4a3422]"
-                  title={token ? token.symbol : `Button ${index + 1}`}
-                >
-                  {token ? (
-                    <>
-                      <img
-                        src={token.image}
-                        alt={token.symbol}
-                        className="w-8 h-8 object-contain"
-                        referrerPolicy="no-referrer"
-                      />
-                      <span className="text-[10px] mt-1">{token.symbol}</span>
-                    </>
-                  ) : (
-                    <span>Button {index + 1}</span>
-                  )}
-                </button>
-              );
-            })}
+          {TOKENS_ARRAY.slice(0, 6).map((token, index) => (
+            <button
+              key={token.symbol}
+              onClick={() => {
+                setToTokenSymbol(token.symbol);
+                setIsSwapOpen(true);
+              }}
+              className="px-3 py-2 rounded-xl bg-[#fff8e1] border-2 border-[#9a6b34] shadow-[0_4px_0_#9a6b34] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9a6b34] flex flex-col items-center justify-center w-20 h-16 text-[#4a3422]"
+              title={token.symbol}
+            >
+              <img
+                src={token.logo}
+                alt={token.symbol}
+                className="w-8 h-8 object-contain"
+                referrerPolicy="no-referrer"
+              />
+              <span className="text-[10px] mt-1">{token.symbol}</span>
+            </button>
+          ))}
           </div>
         </div>
       )}
@@ -811,7 +1057,7 @@ const ExplorePools: React.FC = () => {
                   <SelectValue placeholder="Select token" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TOKENS.map((t) => (
+                  {TOKENS_ARRAY.map((t) => (
                     <SelectItem key={t.symbol} value={t.symbol}>
                       {t.symbol}
                     </SelectItem>
@@ -837,7 +1083,7 @@ const ExplorePools: React.FC = () => {
               <label className="text-sm font-medium text-[#374151]">To</label>
               <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm h-9 bg-gray-50">
                 <img
-                  src={TOKENS.find((t) => t.symbol === toTokenSymbol)?.image}
+                  src={getTokenBySymbol(toTokenSymbol)?.logo}
                   alt={toTokenSymbol}
                   className="w-5 h-5 object-contain"
                 />
@@ -845,17 +1091,21 @@ const ExplorePools: React.FC = () => {
               </div>
             </div>
 
-            <button
-              className="mt-2 h-10 rounded-md bg-[#ffdf8a] border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm font-semibold"
-              onClick={() => {
-                setMarketLine("This is a demo modal. Hook up your swap later.");
-                setTimeout(() => setMarketLine(null), 2000);
-                setIsSwapOpen(false);
-              }}
-              disabled={!fromTokenSymbol || !toTokenSymbol || !sellAmountInput}
-            >
-              Swap
-            </button>
+            <div className="flex gap-2">
+              {/* <button
+                className="mt-2 h-10 rounded-md bg-[#ffdf8a] border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm font-semibold px-4"
+                onClick={performSwapRouterHardcoded}
+              >
+                Test Swap (shMON → sMON, 0.1)
+              </button> */}
+              <button
+                className="mt-2 h-10 rounded-md bg-white border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm font-semibold px-4"
+                onClick={performSwapRouter}
+                disabled={!fromTokenSymbol || !toTokenSymbol || !sellAmountInput}
+              >
+                Swap
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

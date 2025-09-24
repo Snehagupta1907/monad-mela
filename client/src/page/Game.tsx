@@ -131,7 +131,6 @@ export default function Game() {
 
     const playerImg = new Image();
     playerImg.src = "/playerDown.png";
-
     const background = new Sprite({
       position: { x: offset.x, y: offset.y },
       image: backgroundImg,
