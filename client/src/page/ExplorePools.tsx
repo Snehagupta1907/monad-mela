@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Boundary, House, Sprite } from "@/classes/classes";
 import { collision } from "@/data/collision";
+import { motion } from "framer-motion";
+import LoginButton from "@/components/LoginButton";
 import {
   checkForHouseCollision,
   checkForTreeCollision,
@@ -208,30 +210,30 @@ const ExplorePools: React.FC = () => {
               document.querySelector('#houseDialogueBox').style.display = 'none';
             } else {
               // console.log(treeVal)
-    //           document.querySelector('#characterDialogueBox').innerHTML = `
-    //             <div>
-    //             <h3>${pools[treeVal].name} (${pools[treeVal].symbol})</h3>
-    //             <p>Chain: ${pools[treeVal].chain}</p>
-    //             <ul>
-    //               ${pools[treeVal].poolTokens
-    //               .map(
-    //                 (token) => `
-    //                 <li>
-    //                   ${token.name} (${token.symbol}): $${token.balanceUSD}
-    //                 </li>
-    //               `
-    //               )
-    //               .join('')}
-    //             </ul>
-    //           </div>
-    // `;
+              //           document.querySelector('#characterDialogueBox').innerHTML = `
+              //             <div>
+              //             <h3>${pools[treeVal].name} (${pools[treeVal].symbol})</h3>
+              //             <p>Chain: ${pools[treeVal].chain}</p>
+              //             <ul>
+              //               ${pools[treeVal].poolTokens
+              //               .map(
+              //                 (token) => `
+              //                 <li>
+              //                   ${token.name} (${token.symbol}): $${token.balanceUSD}
+              //                 </li>
+              //               `
+              //               )
+              //               .join('')}
+              //             </ul>
+              //           </div>
+              // `;
 
-    document.querySelector('#characterDialogueBox').innerHTML = `
+              document.querySelector('#characterDialogueBox').innerHTML = `
     <div>
               Tree
   </div>
 `;
-  
+
               document.querySelector('#deleteTreeButton').addEventListener('click', () => {
                 if (player.interactionAsset) {
                   const treeIndex = treeZones.indexOf(player.interactionAsset);
@@ -243,7 +245,7 @@ const ExplorePools: React.FC = () => {
                   console.log('Tree deleted!');
                 }
               });
-  
+
               // document.querySelector('#cancel').addEventListener('click', () => {
               //   if (player.interactionAsset) {
               //     // const treeIndex = treeZones.indexOf(player.interactionAsset);
@@ -260,7 +262,7 @@ const ExplorePools: React.FC = () => {
         }
         return;
       }
-  
+
       switch (e.key) {
         case ' ':
           if (!player.interactionAsset) return;
@@ -273,7 +275,7 @@ const ExplorePools: React.FC = () => {
             setShowSwapPrompt(true);
           } else {
             console.log(treeVal)
-  
+
             document.querySelector('#characterDialogueBox').innerHTML = 'tree'
             document.querySelector('#characterDialogueBox').style.display = 'flex';
             player.isInteracting = true;
@@ -533,36 +535,31 @@ const ExplorePools: React.FC = () => {
       {/* Button in the top-right corner */}
       <div className="absolute top-4 z-[5] right-4">
         <div className="flex gap-2">
-        <Link to="/dashboard">
-          <Button
-            variant="default"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            Go to Dashboard
-          </Button>
-        </Link>
-        <Link to="/swaps">
-          <Button
-            variant="secondary"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            Swap Board
-          </Button>
-        </Link>
+  
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex items-center gap-4"
+            >
+              <LoginButton />
+            </motion.div>
+      
+
         </div>
       </div>
       {/* Page content */}
       <canvas ref={canvasRef} />
 
       <div
-  id="characterDialogueBox"
-  className="bg-white fixed bottom-0 left-0 right-0 border-t-4 border-black hidden p-3"
-></div>
+        id="characterDialogueBox"
+        className="bg-white fixed bottom-0 left-0 right-0 border-t-4 border-black hidden p-3"
+      ></div>
 
-<div
-  id="houseDialogueBox"
-  className="bg-white/70 backdrop-blur-sm h-[500px] w-[500px] fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 border-4 border-black hidden p-3"
-></div>
+      <div
+        id="houseDialogueBox"
+        className="bg-white/70 backdrop-blur-sm h-[500px] w-[500px] fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 border-4 border-black hidden p-3"
+      ></div>
 
       {showSwapPrompt && (
         <div className="fixed z-[6] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black w-[360px] rounded-lg shadow-xl p-4">
