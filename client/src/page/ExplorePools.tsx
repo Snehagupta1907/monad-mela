@@ -11,6 +11,7 @@ import {
 } from "@/classes/helper";
 import { houses } from "@/data/houses";
 import { trees } from "@/data/trees";
+import SwapButton from "@/components/SwapButton";
 
 const offset = {
   x: -675,
@@ -573,6 +574,14 @@ const ExplorePools: React.FC = () => {
             className="flex items-center gap-4"
           >
             <LoginButton />
+          </motion.div>
+           <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center gap-4"
+          >
+            <SwapButton />
           </motion.div>
 
 
