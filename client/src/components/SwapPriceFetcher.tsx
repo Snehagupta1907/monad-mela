@@ -4,7 +4,6 @@ import { useState, useEffect, ChangeEvent } from "react";
 import { parseUnits, formatUnits } from "ethers";
 import { getPrice } from "../utils/axios-config"; // import your getPrice function
 
-// Tokens array
 const TOKENS = [
   {
     symbol: "LSD",
@@ -42,7 +41,21 @@ const TOKENS = [
     decimals: 18,
     logoURI: "https://kintsu-logos.s3.us-east-1.amazonaws.com/sMON.svg",
   },
+  {
+    symbol: "MON",
+    address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    decimals: 18,
+    logoURI: "https://imagedelivery.net/cBNDGgkrsEA-b_ixIp9SkQ/MON.png/public",
+  },
+  // Added WMON
+  {
+    symbol: "WMON",
+    address: "0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701",
+    decimals: 18,
+    logoURI: "https://imagedelivery.net/cBNDGgkrsEA-b_ixIp9SkQ/MON.png/public", // you can use a separate WMON logo if available
+  },
 ];
+
 
 // Map for quick lookup
 const TOKENS_BY_SYMBOL = TOKENS.reduce((acc, t) => {

@@ -43,7 +43,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 {/* Price Fetcher */}
                 <div className="text-black">
                     <SwapPriceFetcher
-                        chainId={1}
+                        chainId={chainId}
                         onPrice={(data) => {
                             setPriceData({
                                 ...data,

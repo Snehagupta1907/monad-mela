@@ -674,7 +674,7 @@ const ExplorePools: React.FC = () => {
             transition={{ duration: 0.4 }}
             className="flex items-center gap-4"
           >
-            <SwapButton />
+          
           </motion.div>
 
 
