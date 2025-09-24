@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "../components/ui/button";
+import React, { useEffect, useRef } from "react";
+
 import { Boundary, House, Sprite } from "@/classes/classes";
 import { collision } from "@/data/collision";
 import { motion } from "framer-motion";
@@ -12,7 +11,6 @@ import {
 } from "@/classes/helper";
 import { houses } from "@/data/houses";
 import { trees } from "@/data/trees";
-import { addSwapRequest } from "@/lib/swaps";
 
 const offset = {
   x: -675,
@@ -128,10 +126,6 @@ console.log(treeZones);
 
 const ExplorePools: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [showSwapPrompt, setShowSwapPrompt] = useState(false);
-  const [fromToken, setFromToken] = useState("");
-  const [toToken, setToToken] = useState("");
-  const [amount, setAmount] = useState("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -142,6 +136,9 @@ const ExplorePools: React.FC = () => {
     // Set canvas dimensions
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    // Movement speed (pixels per frame)
+    const SPEED = 5;
 
     // Load background image
     const backgroundImg = new Image();
@@ -158,6 +155,7 @@ const ExplorePools: React.FC = () => {
 
     const playerRightImage = new Image();
     playerRightImage.src = "/playerRight.png";
+
 
     const background = new Sprite({
       position: { x: offset.x, y: offset.y },
@@ -182,6 +180,32 @@ const ExplorePools: React.FC = () => {
         down: playerDownImage,
       },
     });
+
+    // NPC (does not change existing order of trees/houses/boundaries)
+    const npcImage = new Image();
+    npcImage.src = "/playerDown.png";
+    const npc = new Sprite({
+      position: {
+        // near the house path without overlapping fences
+        x: offset.x + 36 * 43,
+        y: offset.y + 36 * 29,
+      },
+      image: npcImage,
+      frames: { max: 4, hold: 12 },
+      animate: true,
+    });
+
+    // Second NPC in front of another house (to the right near the dock)
+    const npc2 = new Sprite({
+      position: {
+        x: offset.x + 36 * 64,
+        y: offset.y + 36 * 32,
+      },
+      image: npcImage,
+      frames: { max: 4, hold: 12 },
+      animate: true,
+    });
+
 
     const keys = {
       w: {
@@ -288,37 +312,63 @@ const ExplorePools: React.FC = () => {
           keys[e.key].pressed = true;
           lastKey = e.key;
           break;
+        case 'ArrowUp':
+          keys.w.pressed = true;
+          lastKey = 'w';
+          break;
+        case 'ArrowLeft':
+          keys.a.pressed = true;
+          lastKey = 'a';
+          break;
+        case 'ArrowDown':
+          keys.s.pressed = true;
+          lastKey = 's';
+          break;
+        case 'ArrowRight':
+          keys.d.pressed = true;
+          lastKey = 'd';
+          break;
       }
     });
 
     window.addEventListener("keyup", (e) => {
       switch (e.key) {
         case "w":
+        case "ArrowUp":
           keys.w.pressed = false;
           break;
         case "a":
+        case "ArrowLeft":
           keys.a.pressed = false;
           break;
         case "s":
+        case "ArrowDown":
           keys.s.pressed = false;
           break;
         case "d":
+        case "ArrowRight":
           keys.d.pressed = false;
           break;
       }
     });
 
+    // Keep original ordering intact; add NPCs at the end so trees/houses order stays the same
+    const worldStatics = [npc, npc2];
+
     const movables = [
       background,
       ...boundaries,
       ...housesMap,
-      ...treeZones];
+      ...treeZones,
+      ...worldStatics,
+    ];
     const renderables = [
       background,
       ...boundaries,
       ...housesMap,
       player,
       ...treeZones,
+      ...worldStatics,
     ];
     function animate() {
       window.requestAnimationFrame(animate);
@@ -349,14 +399,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: 0, y: 3 },
+          characterOffset: { x: 0, y: SPEED },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: 0, y: 3 },
+            characterOffset: { x: 0, y: SPEED },
           });
         }
 
@@ -370,7 +420,7 @@ const ExplorePools: React.FC = () => {
                 ...boundary,
                 position: {
                   x: boundary.position.x,
-                  y: boundary.position.y + 3,
+                  y: boundary.position.y + SPEED,
                 },
               },
             })
@@ -382,7 +432,7 @@ const ExplorePools: React.FC = () => {
 
         if (moving)
           movables.forEach((movable) => {
-            movable.position.y += 3;
+            movable.position.y += SPEED;
           });
 
         // console.log(boundaries);
@@ -393,14 +443,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: 3, y: 0 },
+          characterOffset: { x: SPEED, y: 0 },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: 3, y: 0 },
+            characterOffset: { x: SPEED, y: 0 },
           });
         }
 
@@ -412,7 +462,7 @@ const ExplorePools: React.FC = () => {
               rectangle2: {
                 ...boundary,
                 position: {
-                  x: boundary.position.x + 3,
+                  x: boundary.position.x + SPEED,
                   y: boundary.position.y,
                 },
               },
@@ -429,7 +479,7 @@ const ExplorePools: React.FC = () => {
         //   });
         if (moving)
           movables.forEach((movable) => {
-            movable.position.x += 3;
+            movable.position.x += SPEED;
           });
 
         // console.log(bundaries);
@@ -440,14 +490,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: 0, y: -3 },
+          characterOffset: { x: 0, y: -SPEED },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: 0, y: -3 },
+            characterOffset: { x: 0, y: -SPEED },
           });
         }
 
@@ -460,7 +510,7 @@ const ExplorePools: React.FC = () => {
                 ...boundary,
                 position: {
                   x: boundary.position.x,
-                  y: boundary.position.y - 3,
+                  y: boundary.position.y - SPEED,
                 },
               },
             })
@@ -477,7 +527,7 @@ const ExplorePools: React.FC = () => {
 
         if (moving)
           movables.forEach((movable) => {
-            movable.position.y -= 3;
+            movable.position.y -= SPEED;
           });
       } else if (keys.d.pressed && lastKey === "d") {
         player.animate = true;
@@ -486,14 +536,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: -3, y: 0 },
+          characterOffset: { x: -SPEED, y: 0 },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: -3, y: 0 },
+            characterOffset: { x: -SPEED, y: 0 },
           });
         }
 
@@ -505,7 +555,7 @@ const ExplorePools: React.FC = () => {
               rectangle2: {
                 ...boundary,
                 position: {
-                  x: boundary.position.x - 3,
+                  x: boundary.position.x - SPEED,
                   y: boundary.position.y,
                 },
               },
@@ -522,7 +572,7 @@ const ExplorePools: React.FC = () => {
         //   });
         if (moving)
           movables.forEach((movable) => {
-            movable.position.x -= 3;
+            movable.position.x -= SPEED;
           });
       }
     }
@@ -532,19 +582,19 @@ const ExplorePools: React.FC = () => {
 
   return (
     <div className="bg-slate-900 text-white min-h-screen relative">
-      {/* Button in the top-right corner */}
-      <div className="absolute top-4 z-[5] right-4">
+      {/* Button in the top-right corner (hidden) */}
+      <div className="absolute top-4 z-[5] right-4 hidden">
         <div className="flex gap-2">
-  
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="flex items-center gap-4"
-            >
-              <LoginButton />
-            </motion.div>
-      
+
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center gap-4"
+          >
+            <LoginButton />
+          </motion.div>
+
 
         </div>
       </div>
@@ -560,49 +610,6 @@ const ExplorePools: React.FC = () => {
         id="houseDialogueBox"
         className="bg-white/70 backdrop-blur-sm h-[500px] w-[500px] fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 border-4 border-black hidden p-3"
       ></div>
-
-      {showSwapPrompt && (
-        <div className="fixed z-[6] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black w-[360px] rounded-lg shadow-xl p-4">
-          <h3 className="font-semibold text-lg mb-3">Post Swap Request</h3>
-          <div className="space-y-3">
-            <input
-              value={fromToken}
-              onChange={(e) => setFromToken(e.target.value)}
-              placeholder="From token (e.g. USDC)"
-              className="w-full border rounded px-3 py-2"
-            />
-            <input
-              value={toToken}
-              onChange={(e) => setToToken(e.target.value)}
-              placeholder="To token (e.g. ETH)"
-              className="w-full border rounded px-3 py-2"
-            />
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Amount"
-              className="w-full border rounded px-3 py-2"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowSwapPrompt(false)}>Cancel</Button>
-              <Button
-                onClick={() => {
-                  if (!fromToken || !toToken || !amount) return;
-                  addSwapRequest({ fromToken, toToken, amount });
-                  setShowSwapPrompt(false);
-                  setFromToken("");
-                  setToToken("");
-                  setAmount("");
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Post Request
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
