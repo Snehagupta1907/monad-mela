@@ -5,6 +5,8 @@ import { Boundary, House, Sprite } from "@/classes/classes";
 import { collision } from "@/data/collision";
 import { motion } from "framer-motion";
 import LoginButton from "@/components/LoginButton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   checkForHouseCollision,
   checkForTreeCollision,
@@ -139,6 +141,10 @@ const ExplorePools: React.FC = () => {
     null
   );
   const [marketLine, setMarketLine] = useState<string | null>(null);
+  const [isSwapOpen, setIsSwapOpen] = useState(false);
+  const [fromTokenSymbol, setFromTokenSymbol] = useState<string>(TOKENS[0]?.symbol ?? "");
+  const [toTokenSymbol, setToTokenSymbol] = useState<string>("");
+  const [sellAmountInput, setSellAmountInput] = useState<string>("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -763,6 +769,11 @@ const ExplorePools: React.FC = () => {
               return (
                 <button
                   key={index}
+                  onClick={() => {
+                    if (!token) return;
+                    setToTokenSymbol(token.symbol);
+                    setIsSwapOpen(true);
+                  }}
                   className="px-3 py-2 rounded-xl bg-[#fff8e1] border-2 border-[#9a6b34] shadow-[0_4px_0_#9a6b34] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_2px_0_#9a6b34] flex flex-col items-center justify-center w-20 h-16 text-[#4a3422]"
                   title={token ? token.symbol : `Button ${index + 1}`}
                 >
@@ -785,6 +796,69 @@ const ExplorePools: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Swap Modal */}
+      <Dialog open={isSwapOpen} onOpenChange={setIsSwapOpen}>
+        <DialogContent className="bg-white text-[#1f2937]">
+          <DialogHeader>
+            <DialogTitle>Market Stall: Quick Swap</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 grid gap-4">
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-[#374151]">From</label>
+              <Select value={fromTokenSymbol} onValueChange={setFromTokenSymbol}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select token" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TOKENS.map((t) => (
+                    <SelectItem key={t.symbol} value={t.symbol}>
+                      {t.symbol}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-[#374151]">Amount</label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={sellAmountInput}
+                onChange={(e) => setSellAmountInput(e.target.value)}
+                className="h-9 rounded-md border px-3 text-sm bg-white text-[#1f2937]"
+                placeholder="0.0"
+              />
+            </div>
+
+            <div className="grid gap-1">
+              <label className="text-sm font-medium text-[#374151]">To</label>
+              <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm h-9 bg-gray-50">
+                <img
+                  src={TOKENS.find((t) => t.symbol === toTokenSymbol)?.image}
+                  alt={toTokenSymbol}
+                  className="w-5 h-5 object-contain"
+                />
+                <span>{toTokenSymbol || "Select from NPC buttons"}</span>
+              </div>
+            </div>
+
+            <button
+              className="mt-2 h-10 rounded-md bg-[#ffdf8a] border-2 border-[#9a6b34] shadow-[0_3px_0_#9a6b34] active:translate-y-[2px] active:shadow-none text-[#4a3422] text-sm font-semibold"
+              onClick={() => {
+                setMarketLine("This is a demo modal. Hook up your swap later.");
+                setTimeout(() => setMarketLine(null), 2000);
+                setIsSwapOpen(false);
+              }}
+              disabled={!fromTokenSymbol || !toTokenSymbol || !sellAmountInput}
+            >
+              Swap
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {marketLine && swapAnchor && (
         <div
