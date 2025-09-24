@@ -562,8 +562,8 @@ const ExplorePools: React.FC = () => {
 
   return (
     <div className="bg-slate-900 text-white min-h-screen relative">
-      {/* Button in the top-right corner (hidden) */}
-      <div className="absolute top-4 z-[5] right-4 hidden">
+      {/* Button in the top-right corner */}
+      <div className="absolute top-4 z-[5] right-4">
         <div className="flex gap-2">
 
           <motion.div
