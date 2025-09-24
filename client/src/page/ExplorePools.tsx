@@ -136,6 +136,9 @@ const ExplorePools: React.FC = () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
+    // Movement speed (pixels per frame)
+    const SPEED = 5;
+
     // Load background image
     const backgroundImg = new Image();
     backgroundImg.src = "/GameMapFinal.png";
@@ -175,6 +178,31 @@ const ExplorePools: React.FC = () => {
         right: playerRightImage,
         down: playerDownImage,
       },
+    });
+
+    // NPC (does not change existing order of trees/houses/boundaries)
+    const npcImage = new Image();
+    npcImage.src = "/playerDown.png";
+    const npc = new Sprite({
+      position: {
+        // near the house path without overlapping fences
+        x: offset.x + 36 * 43,
+        y: offset.y + 36 * 29,
+      },
+      image: npcImage,
+      frames: { max: 4, hold: 12 },
+      animate: true,
+    });
+
+    // Second NPC in front of another house (to the right near the dock)
+    const npc2 = new Sprite({
+      position: {
+        x: offset.x + 36 * 64,
+        y: offset.y + 36 * 32,
+      },
+      image: npcImage,
+      frames: { max: 4, hold: 12 },
+      animate: true,
     });
 
 
@@ -283,31 +311,55 @@ const ExplorePools: React.FC = () => {
           keys[e.key].pressed = true;
           lastKey = e.key;
           break;
+        case 'ArrowUp':
+          keys.w.pressed = true;
+          lastKey = 'w';
+          break;
+        case 'ArrowLeft':
+          keys.a.pressed = true;
+          lastKey = 'a';
+          break;
+        case 'ArrowDown':
+          keys.s.pressed = true;
+          lastKey = 's';
+          break;
+        case 'ArrowRight':
+          keys.d.pressed = true;
+          lastKey = 'd';
+          break;
       }
     });
 
     window.addEventListener("keyup", (e) => {
       switch (e.key) {
         case "w":
+        case "ArrowUp":
           keys.w.pressed = false;
           break;
         case "a":
+        case "ArrowLeft":
           keys.a.pressed = false;
           break;
         case "s":
+        case "ArrowDown":
           keys.s.pressed = false;
           break;
         case "d":
+        case "ArrowRight":
           keys.d.pressed = false;
           break;
       }
     });
 
+    // Keep original ordering intact; add NPCs at the end so trees/houses order stays the same
+    const worldStatics = [npc, npc2];
+
     const movables = [
       background,
       ...boundaries,
       ...housesMap,
-      ...treeZones
+      ...treeZones,
+      ...worldStatics,
     ];
     const renderables = [
       background,
@@ -315,6 +367,7 @@ const ExplorePools: React.FC = () => {
       ...housesMap,
       player,
       ...treeZones,
+      ...worldStatics,
     ];
     function animate() {
       window.requestAnimationFrame(animate);
@@ -345,14 +398,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: 0, y: 3 },
+          characterOffset: { x: 0, y: SPEED },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: 0, y: 3 },
+            characterOffset: { x: 0, y: SPEED },
           });
         }
 
@@ -366,7 +419,7 @@ const ExplorePools: React.FC = () => {
                 ...boundary,
                 position: {
                   x: boundary.position.x,
-                  y: boundary.position.y + 3,
+                  y: boundary.position.y + SPEED,
                 },
               },
             })
@@ -378,7 +431,7 @@ const ExplorePools: React.FC = () => {
 
         if (moving)
           movables.forEach((movable) => {
-            movable.position.y += 3;
+            movable.position.y += SPEED;
           });
 
         // console.log(boundaries);
@@ -389,14 +442,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: 3, y: 0 },
+          characterOffset: { x: SPEED, y: 0 },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: 3, y: 0 },
+            characterOffset: { x: SPEED, y: 0 },
           });
         }
 
@@ -408,7 +461,7 @@ const ExplorePools: React.FC = () => {
               rectangle2: {
                 ...boundary,
                 position: {
-                  x: boundary.position.x + 3,
+                  x: boundary.position.x + SPEED,
                   y: boundary.position.y,
                 },
               },
@@ -425,7 +478,7 @@ const ExplorePools: React.FC = () => {
         //   });
         if (moving)
           movables.forEach((movable) => {
-            movable.position.x += 3;
+            movable.position.x += SPEED;
           });
 
         // console.log(bundaries);
@@ -436,14 +489,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: 0, y: -3 },
+          characterOffset: { x: 0, y: -SPEED },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: 0, y: -3 },
+            characterOffset: { x: 0, y: -SPEED },
           });
         }
 
@@ -456,7 +509,7 @@ const ExplorePools: React.FC = () => {
                 ...boundary,
                 position: {
                   x: boundary.position.x,
-                  y: boundary.position.y - 3,
+                  y: boundary.position.y - SPEED,
                 },
               },
             })
@@ -473,7 +526,7 @@ const ExplorePools: React.FC = () => {
 
         if (moving)
           movables.forEach((movable) => {
-            movable.position.y -= 3;
+            movable.position.y -= SPEED;
           });
       } else if (keys.d.pressed && lastKey === "d") {
         player.animate = true;
@@ -482,14 +535,14 @@ const ExplorePools: React.FC = () => {
         checkForHouseCollision({
           housesMap,
           player,
-          characterOffset: { x: -3, y: 0 },
+          characterOffset: { x: -SPEED, y: 0 },
         });
 
         if (player.interactionAsset === null) {
           checkForTreeCollision({
             treeZones,
             player,
-            characterOffset: { x: -3, y: 0 },
+            characterOffset: { x: -SPEED, y: 0 },
           });
         }
 
@@ -501,7 +554,7 @@ const ExplorePools: React.FC = () => {
               rectangle2: {
                 ...boundary,
                 position: {
-                  x: boundary.position.x - 3,
+                  x: boundary.position.x - SPEED,
                   y: boundary.position.y,
                 },
               },
@@ -518,7 +571,7 @@ const ExplorePools: React.FC = () => {
         //   });
         if (moving)
           movables.forEach((movable) => {
-            movable.position.x -= 3;
+            movable.position.x -= SPEED;
           });
       }
     }
@@ -528,17 +581,17 @@ const ExplorePools: React.FC = () => {
 
   return (
     <div className="bg-slate-900 text-white min-h-screen relative">
-      {/* Button in the top-right corner */}
-      <div className="absolute top-4 z-[5] right-4">
+      {/* Button in the top-right corner (hidden) */}
+      <div className="absolute top-4 z-[5] right-4 hidden">
         <div className="flex gap-2">
-        <Link to="/dashboard">
-          <Button
-            variant="default"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            Go to Dashboard
-          </Button>
-        </Link>
+          <Link to="/dashboard">
+            <Button
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Go to Dashboard
+            </Button>
+          </Link>
         </div>
       </div>
       {/* Page content */}

@@ -6,7 +6,6 @@ import ExplorePools from "./page/ExplorePools";
 import CreatePool from "./page/CreatePool";
 import KingOfTheHillSection from "./components/KingOfTheHillSection";
 import PoolCardsSection from "./components/PoolCardsSection";
-import Game from "./page/Game";
 import CheckPage from './page/CheckPage';
 
 const App: React.FC = () => {
