@@ -1,8 +1,5 @@
-# BloomFi
+# Monad Fair
 
-## Live Website Link
-
-[https://bloom-fi.vercel.app/](https://bloom-fi.vercel.app/)
 
 **Note:** Please make sure to log in or connect your wallet with MetaMask before continuing with the game.
 
